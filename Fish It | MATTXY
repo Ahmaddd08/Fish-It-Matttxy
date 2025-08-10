@@ -1,0 +1,157 @@
+-- ====== CONFIG ======
+local CONFIG = {
+    AutoFish = true,
+    AutoReel = true,
+    AutoSell = true,
+    AutoUpgradeRod = false,
+    Luck = 0,
+    Weight = 0,
+    FishType = "Any",
+    CastInterval = 1.5,
+    ReelHoldTime = 1.0,
+}
+
+-- ====== Load Rayfield UI ======
+local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source.lua'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "Fish It - Delta Executor",
+    LoadingTitle = "Memuat Script...",
+    LoadingSubtitle = "by ChatGPT",
+})
+
+local MainTab = Window:CreateTab("Main", 4483362458)
+
+-- ====== Remote Finder ======
+local Remotes = {}
+local function findRemotes()
+    Remotes = {}
+    for _, v in pairs(game:GetDescendants()) do
+        if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
+            local name = v.Name:lower()
+            if name:find("cast") then Remotes.Cast = v end
+            if name:find("reel") then Remotes.Reel = v end
+            if name:find("sell") then Remotes.Sell = v end
+            if name:find("upgrade") then Remotes.Upgrade = v end
+            if name:find("luck") or name:find("weight") then Remotes.SetStats = v end
+        end
+    end
+end
+
+-- ====== Action Functions ======
+local function fire(remote, ...)
+    if remote then
+        pcall(function()
+            if remote:IsA("RemoteEvent") then
+                remote:FireServer(...)
+            elseif remote:IsA("RemoteFunction") then
+                remote:InvokeServer(...)
+            end
+        end)
+    end
+end
+
+local running = false
+local function startAutoFish()
+    if running then return end
+    running = true
+    task.spawn(function()
+        while running do
+            fire(Remotes.SetStats, CONFIG.Luck, CONFIG.Weight, CONFIG.FishType)
+            if CONFIG.AutoFish then
+                fire(Remotes.Cast)
+                task.wait(CONFIG.CastInterval)
+                if CONFIG.AutoReel then
+                    fire(Remotes.Reel)
+                    task.wait(CONFIG.ReelHoldTime)
+                end
+            end
+            if CONFIG.AutoSell then fire(Remotes.Sell) end
+            if CONFIG.AutoUpgradeRod then fire(Remotes.Upgrade) end
+            task.wait(0.2)
+        end
+    end)
+end
+
+local function stopAutoFish()
+    running = false
+end
+
+-- ====== UI Controls ======
+MainTab:CreateToggle({
+    Name = "Auto Fish",
+    CurrentValue = CONFIG.AutoFish,
+    Callback = function(v) CONFIG.AutoFish = v end
+})
+
+MainTab:CreateToggle({
+    Name = "Auto Reel",
+    CurrentValue = CONFIG.AutoReel,
+    Callback = function(v) CONFIG.AutoReel = v end
+})
+
+MainTab:CreateToggle({
+    Name = "Auto Sell",
+    CurrentValue = CONFIG.AutoSell,
+    Callback = function(v) CONFIG.AutoSell = v end
+})
+
+MainTab:CreateToggle({
+    Name = "Auto Upgrade Rod",
+    CurrentValue = CONFIG.AutoUpgradeRod,
+    Callback = function(v) CONFIG.AutoUpgradeRod = v end
+})
+
+MainTab:CreateSlider({
+    Name = "Luck",
+    Range = {0, 100},
+    Increment = 1,
+    CurrentValue = CONFIG.Luck,
+    Callback = function(v) CONFIG.Luck = v end
+})
+
+MainTab:CreateSlider({
+    Name = "Weight",
+    Range = {0, 100},
+    Increment = 1,
+    CurrentValue = CONFIG.Weight,
+    Callback = function(v) CONFIG.Weight = v end
+})
+
+MainTab:CreateDropdown({
+    Name = "Fish Type",
+    Options = {"Any", "Common", "Uncommon", "Rare", "Legendary"},
+    CurrentOption = CONFIG.FishType,
+    Callback = function(v) CONFIG.FishType = v end
+})
+
+MainTab:CreateSlider({
+    Name = "Cast Interval (s)",
+    Range = {0.2, 5},
+    Increment = 0.1,
+    CurrentValue = CONFIG.CastInterval,
+    Callback = function(v) CONFIG.CastInterval = v end
+})
+
+MainTab:CreateSlider({
+    Name = "Reel Hold Time (s)",
+    Range = {0, 3},
+    Increment = 0.1,
+    CurrentValue = CONFIG.ReelHoldTime,
+    Callback = function(v) CONFIG.ReelHoldTime = v end
+})
+
+MainTab:CreateButton({
+    Name = "Start",
+    Callback = function()
+        findRemotes()
+        startAutoFish()
+    end
+})
+
+MainTab:CreateButton({
+    Name = "Stop",
+    Callback = function()
+        stopAutoFish()
+    end
+})
